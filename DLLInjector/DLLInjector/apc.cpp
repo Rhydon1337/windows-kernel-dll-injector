@@ -1,7 +1,6 @@
 #include "apc.h"
 
-VOID KernelAPC(PVOID context, PVOID, PVOID, PVOID, PVOID) {
-    ExFreePool(context);
+VOID KernelAPC(PVOID, PVOID, PVOID, PVOID, PVOID) {
 }
 
 NTSTATUS call_apc(PKTHREAD target_thread, PVOID target_function, PVOID params) {
@@ -18,7 +17,9 @@ NTSTATUS call_apc(PKTHREAD target_thread, PVOID target_function, PVOID params) {
         UserMode,
         params);
 
-    KeInsertQueueApc(apc, 0, NULL, 0);
-
+    if (!KeInsertQueueApc(apc, nullptr, nullptr, 0)) {
+        ////ExFreePool(apc);
+    	return STATUS_UNSUCCESSFUL;
+    }
 	return STATUS_SUCCESS;
 }

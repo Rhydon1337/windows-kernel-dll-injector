@@ -13,7 +13,6 @@ NTSTATUS device_create_close(PDEVICE_OBJECT device_object, PIRP irp) {
 	return STATUS_SUCCESS;
 }
 
-
 NTSTATUS device_ioctl(PDEVICE_OBJECT device_object, PIRP irp) {
 	UNREFERENCED_PARAMETER(device_object);
 
