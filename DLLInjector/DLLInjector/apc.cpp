@@ -18,7 +18,7 @@ NTSTATUS call_apc(PKTHREAD target_thread, PVOID target_function, PVOID params) {
         params);
 
     if (!KeInsertQueueApc(apc, nullptr, nullptr, 0)) {
-        ////ExFreePool(apc);
+        ExFreePool(apc);
     	return STATUS_UNSUCCESSFUL;
     }
 	return STATUS_SUCCESS;

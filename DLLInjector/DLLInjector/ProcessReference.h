@@ -15,6 +15,6 @@ public:
 private:
 	PEPROCESS m_process;
 	bool m_attach{};
-	KAPC_STATE m_apc_state{};
+	KAPC_STATE* m_apc_state;
 };
 

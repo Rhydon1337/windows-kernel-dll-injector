@@ -102,7 +102,7 @@ NTSTATUS get_process_info_by_pid(size_t pid, ProcessInfo* process_info) {
 	    }
     }
     for (size_t i = 0; i < number_of_processes; i++) {
-    	if (nullptr != (processes + i)->threads_id) {
+    	if (nullptr != (processes + i)->threads_id && (processes + i)->number_of_threads > 0) {
             ExFreePool((processes + i)->threads_id);
     	}
     }
@@ -128,12 +128,15 @@ ProcessInfo* get_processes_info(size_t* number_of_processes) {
         process = (SYSTEM_PROCESS_INFORMATION*)((char*)process + process->NextEntryOffset), ++i) {
         (processes_info + i)->process_id = (size_t)process->ProcessId;
 		(processes_info + i)->number_of_threads = (size_t)process->NumberOfThreads;
-        (processes_info + i)->threads_id = (size_t*)ExAllocatePool(PagedPool, process->NumberOfThreads);
-        for (size_t j = 0; j < process->NumberOfThreads; j++) {
+        if (0 == process->NumberOfThreads) {
+            continue;
+        }
+    	(processes_info + i)->threads_id = (size_t*)ExAllocatePool(PagedPool, sizeof(size_t) * process->NumberOfThreads);
+    	for (size_t j = 0; j < process->NumberOfThreads; j++) {
             *(((ProcessInfo*)(processes_info + i))->threads_id + j) = (size_t)process->Threads[j].ClientId.UniqueThread;
         }
     }
 	
-    ExFreePool(get_all_processes());
+    ExFreePool(all_processes);
     return processes_info;
 }

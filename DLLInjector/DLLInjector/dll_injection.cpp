@@ -38,33 +38,24 @@ NTSTATUS inject_dll(const InjectDllArgs& inject_dll_args) {
 		// Allocate and copy the apc user mode callback code to target process
 		SIZE_T code_size = reinterpret_cast<ULONG_PTR>(user_mode_apc_callback_end) - reinterpret_cast<ULONG_PTR>(user_mode_apc_callback);
 		if (!NT_SUCCESS(ZwAllocateVirtualMemory(NtCurrentProcess(), &injected_apc_callback, NULL, &code_size, MEM_COMMIT, PAGE_EXECUTE_READWRITE))) {
-			goto release_apc_callback_args;
+			ZwFreeVirtualMemory(NtCurrentProcess(), &injected_apc_args, &apc_args_allocation_size, MEM_RELEASE);
+			return STATUS_UNSUCCESSFUL;
 		}
 		
 		RtlCopyMemory(injected_apc_callback, &user_mode_apc_callback, code_size);
-
-		if (!NT_SUCCESS(get_process_info_by_pid(inject_dll_args.pid, &process_info))) {
-			goto release_apc_callback;
-		}
-
-		if (!NT_SUCCESS(PsLookupThreadByThreadId((HANDLE)process_info.threads_id[0], &target_thread))) {
-			goto release_process_info;
-		}
-
-		goto success;
-		release_process_info:
-		ExFreePool(process_info.threads_id);
-		release_apc_callback:
-		ZwFreeVirtualMemory(NtCurrentProcess(), &injected_apc_callback, &code_size, MEM_RELEASE);
-		release_apc_callback_args:
-		ZwFreeVirtualMemory(NtCurrentProcess(), &injected_apc_args, &apc_args_allocation_size, MEM_RELEASE);
-		return STATUS_UNSUCCESSFUL;
-		success:
-		KdPrint(("Finished all allocations, start the apc injection\n"));
 	}
-	// Execute LoadLibrary in the target process in order to load our dll
-	call_apc(target_thread, injected_apc_callback, injected_apc_args);
-	ExFreePool(process_info.threads_id);
-	ObDereferenceObject(target_thread);
+
+	CHECK(get_process_info_by_pid(inject_dll_args.pid, &process_info));
+
+	for (size_t i = 0; i < process_info.number_of_threads; i++) {
+		if (!NT_SUCCESS(PsLookupThreadByThreadId((HANDLE)process_info.threads_id[i], &target_thread))) {
+			ExFreePool(process_info.threads_id);
+			return STATUS_UNSUCCESSFUL;
+		}
+
+		// Execute LoadLibrary in the target process in order to load our dll
+		call_apc(target_thread, injected_apc_callback, injected_apc_args);
+		ObDereferenceObject(target_thread);
+	}
 	return STATUS_SUCCESS;
 }
