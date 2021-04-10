@@ -1,10 +1,10 @@
 # windows-kernel-dll-injector
 ## TL;DR
-Windows kernel mode to user mode dll injection.
+Windows kernel mode to user mode dll injection
 
-Test on Windows x64 1909. 
+Test on Windows x64 1909
 
-Inject a dll to target process from kernel driver.
+Inject a dll to target process from kernel driver
 
 ## How its works
 The injection process is divided into several stages:
