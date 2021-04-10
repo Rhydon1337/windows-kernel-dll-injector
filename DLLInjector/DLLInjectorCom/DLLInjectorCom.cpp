@@ -12,7 +12,6 @@ int wmain(int, wchar_t** argv) {
 		return 1;
     }
 	InjectDllArgs args = {};
-	args.load_library_function_address = reinterpret_cast<char*>(GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryW"));
 	memcpy(args.dll_path, argv[1], wcslen(argv[1]) * sizeof(wchar_t));
 	args.pid = std::stoi(argv[2]);
 

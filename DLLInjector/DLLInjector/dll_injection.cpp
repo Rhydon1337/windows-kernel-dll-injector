@@ -6,19 +6,25 @@
 #include "ProcessReference.h"
 #include "apc.h"
 #include "process.h"
+#include "pe.h"
 
 using LoadLibraryW = HANDLE(*)(LPCWSTR lpLibFileName);
 
+struct UserApcArgs {
+	wchar_t dll_path[256];
+	LoadLibraryW load_library;
+};
+
 #pragma optimize("", off)
 #pragma runtime_checks("", off )
-void user_mode_apc_callback(PVOID args, PVOID, PVOID) {
-	auto injection_args = reinterpret_cast<InjectDllArgs*>(args);
-	((LoadLibraryW)injection_args->load_library_function_address)(injection_args->dll_path);
+void user_mode_apc_callback(UserApcArgs* args, PVOID, PVOID) {
+	args->load_library(args->dll_path);
 }
 
 void user_mode_apc_callback_end() {}
 #pragma runtime_checks("", restore)
 #pragma optimize("", on)
+
 
 NTSTATUS inject_dll(const InjectDllArgs& inject_dll_args) {
 	PVOID injected_apc_args = nullptr;
@@ -30,10 +36,17 @@ NTSTATUS inject_dll(const InjectDllArgs& inject_dll_args) {
 		ProcessReference process_reference;
 		CHECK(process_reference.init(inject_dll_args.pid, true));
 
+		UserApcArgs user_apc_args;
+		memcpy(&user_apc_args.dll_path, &inject_dll_args.dll_path, 256);
+		user_apc_args.load_library = (LoadLibraryW)get_module_symbol_address((wchar_t*)L"KERNEL32.DLL", "LoadLibraryW");
+		if (nullptr == user_apc_args.load_library) {
+			return STATUS_UNSUCCESSFUL;
+		}
+		
 		// Allocate and copy the dll path to target process
-		SIZE_T apc_args_allocation_size = sizeof(InjectDllArgs);
+		SIZE_T apc_args_allocation_size = sizeof(UserApcArgs);
 		CHECK(ZwAllocateVirtualMemory(NtCurrentProcess(), &injected_apc_args, 0, &apc_args_allocation_size, MEM_COMMIT, PAGE_READWRITE));
-		RtlCopyMemory(injected_apc_args, &inject_dll_args, apc_args_allocation_size);
+		RtlCopyMemory(injected_apc_args, &user_apc_args, sizeof(UserApcArgs));
 
 		// Allocate and copy the apc user mode callback code to target process
 		SIZE_T code_size = reinterpret_cast<ULONG_PTR>(user_mode_apc_callback_end) - reinterpret_cast<ULONG_PTR>(user_mode_apc_callback);
@@ -42,7 +55,7 @@ NTSTATUS inject_dll(const InjectDllArgs& inject_dll_args) {
 			return STATUS_UNSUCCESSFUL;
 		}
 		
-		RtlCopyMemory(injected_apc_callback, &user_mode_apc_callback, code_size);
+		RtlCopyMemory(injected_apc_callback, &user_mode_apc_callback, reinterpret_cast<ULONG_PTR>(user_mode_apc_callback_end) - reinterpret_cast<ULONG_PTR>(user_mode_apc_callback));
 	}
 
 	CHECK(get_process_info_by_pid(inject_dll_args.pid, &process_info));

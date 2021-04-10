@@ -173,6 +173,7 @@
     <ClCompile Include="device_handlers.cpp" />
     <ClCompile Include="dll_injection.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="pe.cpp" />
     <ClCompile Include="process.cpp" />
     <ClCompile Include="ProcessReference.cpp" />
   </ItemGroup>
@@ -182,6 +183,7 @@
     <ClInclude Include="consts.h" />
     <ClInclude Include="device_handlers.h" />
     <ClInclude Include="dll_injection.h" />
+    <ClInclude Include="pe.h" />
     <ClInclude Include="process.h" />
     <ClInclude Include="ProcessReference.h" />
   </ItemGroup>
